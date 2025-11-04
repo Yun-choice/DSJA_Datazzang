@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>즐거운 학교 뷔페 • Standalone</title>
+    <!-- Tailwind (CDN) → 인터넷 연결 필요 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 & ReactDOM 18 (UMD, CDN) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel (브라우저에서 JSX 변환) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="env,react">
+      // 즐거운 학교 뷔페 (React 18, CDN) — 단일 HTML에서 실행
+      const { useMemo, useState } = React;
+
+      const DISHES = [
+        { id: "pork-belly", name: "삼겹살 구이", category: "직화/구이", factor: 120, emoji: "🍖" },
+        { id: "steak", name: "스테이크 굽기", category: "직화/구이", factor: 120, emoji: "🥩" },
+        { id: "fish", name: "생선 구이", category: "직화/구이", factor: 120, emoji: "🐟"}, 
+        { id: "fried-chicken", name: "치킨", category: "튀김", factor: 120, emoji: "🍗" },
+        { id: "fried-shrimp", name: "새우튀김", category: "튀김", factor: 100, emoji: "🍤" },
+        { id: "stirfried-rice", name: "볶음밥", category: "볶음", factor: 110, emoji: "🍚" },
+        { id: "ramen", name: "라면", category: "끓이기", factor: 50, emoji: "🍜" },
+        { id: "soup", name: "맑은국/수프", category: "끓이기", factor: 50, emoji: "🥣" },
+        { id: "stew", name: "찌개", category: "끓이기", factor: 50, emoji: "🍲" },
+        { id: "curry", name: "카레", category: "끓이기", factor: 50, emoji: "🍛" },
+        { id: "braised spicy chicken", name: "닭볶음탕", category: "끓이기", factor: 50, emoji: "🫕" },
+        { id: "pizza", name: "피자", category: "오븐/구이", factor: 90, emoji: "🍕" },
+        { id: "burger", name: "버거", category: "패스트푸드", factor: 90, emoji: "🍔" },
+        { id: "hotdog", name: "핫도그", category: "패스트푸드", factor: 90, emoji: "🌭" },
+        { id: "boiled-veggies", name: "데친 야채", category: "데침", factor: 5, emoji: "🥬" },
+        { id: "icecream", name: "아이스크림", category: "디저트", factor: 5, emoji: "🍨" },
+        { id: "cake", name: "케이크", category: "디저트", factor: 5, emoji: "🍰" },
+        { id: "yogurt", name: "요플레", category: "디저트", factor: 5, emoji: "🥛" },
+        { id: "bubbletea", name: "버블티", category: "디저트", factor: 5, emoji: "🧋" },
+        { id: "fruit", name: "과일", category: "디저트", factor: 5, emoji: "🍉" },
+        { id: "beer", name: "맥주", category: "디저트", factor: 0, emoji: "🍺" },
+        { id: "salad", name: "샐러드", category: "생식", factor: 5, emoji: "🥗" },
+        { id: "sushi", name: "초밥", category: "생식", factor: 5, emoji: "🍣" },
+        { id: "vegetable", name: "오이", category: "생식", factor: 5, emoji: "🥒" },
+        { id: "apple", name: "사과", category: "생식", factor: 5, emoji: "🍎" },
+        { id: "kimchi", name: "김치", category: "생식", factor: 5, emoji: "🌶️🧄🥬" }
+      ];
+
+      const GAME_OVER_THRESHOLD = 300; // 권고 임계값(이제는 게임 종료가 아님)
+      const TRAY_SLOTS = 5; // 위 3칸 + 아래 2칸
+
+      function levelFromScore(score) {
+        if (score >= 350) return { label: "매우 높음", desc: "환기 최우선!", emoji: "🔥" };
+        if (score >= 250) return { label: "높음", desc: "강제 환기 필요", emoji: "⚠️" };
+        if (score >= 150) return { label: "보통", desc: "간헐 환기 권장", emoji: "🟡" };
+        return { label: "낮음", desc: "양호한 상태", emoji: "🟢" };
+      }
+
+      function endingFromScore(score) {
+        if (score <= 150) return { title: "조리흄 적은 식단! 참 잘했어요 🙌", detail: "환기 부담이 적어요. 이런 식단, 계속 유지해볼까요?" };
+        if (score <= 250) return { title: "무난무난 식단 😌", detail: "환기가 가끔 필요해요. 다음엔 더 가벼운 메뉴도 도전!" };
+        if (score <= 350) return { title: "보통 수준 🟡", detail: "조리흄이 쌓였어요. 식사 후 환기를 한번 돌려요." };
+        if (score <= 600) return { title: "조리사님은 콜록콜록… 😷", detail: "강한 열·기름 조리가 많았네요. 강제 환기 권장!" };
+        return { title: "연기 폭발! 🔥", detail: "즉시 환기, 조리 방식 조절이 필요해요." };
+      }
+
+      function BuffetFumeGame() {
+        const [slots, setSlots] = useState(Array(TRAY_SLOTS).fill(null));
+        const [search, setSearch] = useState("");
+
+        const totalScore = useMemo(
+          () => slots.reduce((sum, item) => sum + (item?.factor ?? 0), 0),
+          [slots]
+        );
+        const level = levelFromScore(totalScore);
+
+        const isComplete = useMemo(() => slots.every((s) => s != null), [slots]);
+
+        const addDish = (dish) => {
+          if (isComplete) return; // 다 찼으면 무시
+          const idx = slots.findIndex((s) => s == null);
+          if (idx === -1) return; // 빈 칸 없음
+          const next = [...slots];
+          next[idx] = dish;
+          setSlots(next);
+        };
+
+        const resetAll = () => {
+          setSlots(Array(TRAY_SLOTS).fill(null));
+        };
+
+        const filtered = useMemo(() => {
+          const q = (search || "").trim().toLowerCase();
+          if (!q) return DISHES;
+          return DISHES.filter((d) =>
+            (d.name || "").toLowerCase().includes(q) || (d.category || "").toLowerCase().includes(q)
+          );
+        }, [search]);
+
+        const dishColor = (dish) => {
+          if (!dish) return "#f8fafc";
+          const cat = dish.category || "";
+          if (cat.includes("튀김")) return "#ffffff";
+          if (cat.includes("구이")) return "#ffffff";
+          if (cat.includes("끓이기")) return "#ffffff";
+          if (cat.includes("데침")) return "#ffffff";
+          if (cat.includes("패스트푸드")) return "#ffffff";
+          if (cat.includes("디저트")) return "#ffffff";
+          if (cat.includes("생식")) return "#ffffff";
+          return "#ffffff";
+        };
+
+        return (
+          <div className="min-h-[90vh] w-full p-6 sm:p-8 bg-gradient-to-b from-white to-slate-50 text-slate-800">
+            {/* 헤더 */}
+            <div className="max-w-5xl mx-auto">
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">즐거운 학교 뷔페 🍽️</h1>
+              <p className="mt-1 text-sm text-slate-600">음식을 선택하면 급식판에 담겨요.</p>
+            </div>
+
+            {/* 요약 카드 */}
+            <div className="max-w-5xl mx-auto mt-5 grid gap-4 sm:grid-cols-3">
+              <div className="col-span-2 bg-white rounded-2xl shadow p-5">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <div className="text-sm text-slate-500">총 조리흄 점수</div>
+                    <div className="text-3xl font-bold tabular-nums">{totalScore}</div>
+                  </div>
+                  <button onClick={resetAll} className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm">초기화</button>
+                </div>
+                <div className="mt-4">
+                  <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-3 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, (totalScore / GAME_OVER_THRESHOLD) * 100)}%`,
+                        background:
+                          totalScore >= GAME_OVER_THRESHOLD
+                            ? "#ef4444"
+                            : totalScore >= 250
+                            ? "#f59e0b"
+                            : totalScore >= 120
+                            ? "#eab308"
+                            : "#22c55e",
+                      }}
+                    />
+                  </div>
+                  <div className="mt-2 text-sm text-slate-600 flex items-center gap-2">
+                    <span className="text-base">{level.emoji}</span>
+                    <span className="font-medium">{level.label}</span>
+                    <span className="text-slate-400">·</span>
+                    <span>{level.desc}</span>
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">권고 임계값: <span className="font-semibold tabular-nums">{GAME_OVER_THRESHOLD}</span>점 초과 시 주의</div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow p-5 flex flex-col">
+                <label className="text-xs text-slate-500">메뉴 검색</label>
+                <input
+                  className="mt-1 rounded-xl border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  placeholder="예: 튀김, 구이, 샐러드"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* 식판 UI (위 3칸, 아래 2칸) */}
+            <div className="max-w-5xl mx-auto mt-6 flex flex-col items-center">
+              <div className="relative w-[400px] h-[300px] bg-gray-300 rounded-xl grid grid-cols-6 gap-2 p-2">
+                {/* 위 3칸 */}
+                {[0,1,2].map((i) => {
+                  const dish = slots[i];
+                  return (
+                    <div key={`top-${i}`} className="col-span-2 flex items-center justify-center bg-gray-100 rounded-lg relative">
+                      {dish && (
+                        <>
+                          <svg width="56" height="56" viewBox="0 0 56 56" aria-label={dish.name}>
+                            <circle cx="28" cy="28" r="22" fill={dishColor(dish)} />
+                            <rect x="18" y="18" width="20" height="20" rx="6" fill="white" opacity="0.6" />
+                          </svg>
+                          <span className="absolute text-2xl" aria-hidden>{dish.emoji}</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* 아래 2칸 */}
+                {[3,4].map((i) => {
+                  const dish = slots[i];
+                  return (
+                    <div key={`bottom-${i}`} className="col-span-3 flex items-center justify-center bg-gray-100 rounded-lg relative">
+                      {dish && (
+                        <>
+                          <svg width="56" height="56" viewBox="0 0 56 56" aria-label={dish.name}>
+                            <circle cx="28" cy="28" r="22" fill={dishColor(dish)} />
+                            <rect x="18" y="18" width="20" height="20" rx="6" fill="white" opacity="0.6" />
+                          </svg>
+                          <span className="absolute text-2xl" aria-hidden>{dish.emoji}</span>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-xs text-slate-500">음식을 담으면 식판 칸이 채워집니다. 5개 모두 채우면 결과 화면이 뜹니다.</div>
+            </div>
+
+            {/* 음식 선택 목록 */}
+            <div className="max-w-5xl mx-auto mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((d) => (
+                <div key={d.id} className="bg-white rounded-2xl shadow p-5 flex flex-col justify-between">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-lg font-semibold">{d.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{d.category}</div>
+                      <div className="mt-3 text-sm text-slate-600">가중치: <span className="font-medium tabular-nums">{d.factor}</span></div>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center relative">
+                      <svg width="32" height="32" viewBox="0 0 56 56">
+                        <circle cx="28" cy="28" r="22" fill={dishColor(d)} />
+                        <rect x="18" y="18" width="20" height="20" rx="6" fill="white" opacity="0.6" />
+                      </svg>
+                      <span className="absolute text-lg" aria-hidden>{d.emoji}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-end">
+                    <button
+                      onClick={() => addDish(d)}
+                      disabled={isComplete}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold ${isComplete ? 'bg-slate-300 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 text-white'}`}
+                    >
+                      담기
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 결과 모달 (5칸 모두 찼을 때) */}
+            {isComplete && (
+              <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-white rounded-2xl shadow-xl p-6 w-[min(92vw,520px)] text-center">
+                  {(() => { const ending = endingFromScore(totalScore); return (
+                    <>
+                      <div className="text-2xl sm:text-3xl font-bold">🎯 결과</div>
+                      <div className="mt-2 text-slate-600">
+                        총 조리흄 점수 <span className="font-bold tabular-nums">{totalScore}</span>점
+                      </div>
+                      <div className="mt-4">
+                        <div className="text-lg font-semibold">{ending.title}</div>
+                        <div className="mt-1 text-sm text-slate-600">{ending.detail}</div>
+                      </div>
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <button onClick={resetAll} className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">다시 도전하기</button>
+                        <a href="https://euten11.wixsite.com/my-site-3" target="_blank" rel="noreferrer" className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 inline-flex items-center justify-center">기사 보러가기</a>
+                      </div>
+                    </>
+                  ); })()}
+                </div>
+              </div>
+            )}
+
+            {/* 안내문 */}
+            <div className="max-w-5xl mx-auto mt-8 text-xs text-slate-500 leading-relaxed">
+              * 본 게임의 조리흄 점수는 데모용 추정 가중치입니다. 메뉴/조리방식/기기 성능, 환기 상태에 따라 실제 수치는 달라질 수 있습니다.
+            </div>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<BuffetFumeGame />);
+    </script>
+  </body>
+</html>
