@@ -1,7 +1,8 @@
 # "일당백, 학교 급식과 싸우는 노동자들"
-게임하고 기사보기: [Link](https://yun-choice.github.io/DSJA_Datazzang/)
-기사 바로 보러가기: [Link](https://euten11.wixsite.com/my-site-3)
+게임하고 기사 보러가기: [Link](https://yun-choice.github.io/DSJA_Datazzang/)
+, 기사 바로 보러가기: [Link](https://euten11.wixsite.com/my-site-3)
 
+---
 우리는 **뜨거운 가스실**과도 같은 고된 노동 환경 속에서 일하는 '급식 조리사'분들을 심층 취재하고, 그 힘듦을 데이터로 표현하였습니다.
 그들은 학생들의 점심식사를 책임지기 위해 1인 평균 **109.5명**의 식수를 책임지며, **40도**에 육박하는 조리실을 버텨냅니다.
 
@@ -14,6 +15,7 @@
 
 **급식실 개선은 아이들을 위한 것입니다.** 근본적인 변화가 필요합니다.
 
+---
 
 - 팀, **데이터짱**이 만들었습니다.
 - SBS 데이터 사이언스와 저널리즘 아카데미 3기 [알아보기](http://datajac.info/ft/main.do)
